@@ -79,9 +79,10 @@ export interface Payment {
 }
 
 export interface Favorite {
-  _id?: ObjectId;
+  _id?: ObjectId | string;
   userId: ObjectId | string;
   equipmentId: ObjectId | string;
+  equipment?: Equipment | null;
   createdAt: Date;
 }
 

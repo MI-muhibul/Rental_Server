@@ -124,6 +124,13 @@ export const initIndexes = async (targetDb?: Db): Promise<void> => {
       },
     });
 
+    // 5. favorites unique index on (userId, equipmentId)
+    const favoritesCollection = db.collection<Favorite>(COLLECTIONS.FAVORITES);
+    await favoritesCollection.createIndex(
+      { userId: 1, equipmentId: 1 },
+      { unique: true, name: 'favorites_user_equipment_unique_idx' }
+    );
+
     indexesInitialized = true;
     console.log('MongoDB indexes ensured successfully.');
   } catch (error) {
