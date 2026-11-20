@@ -4,6 +4,7 @@ import env from './config';
 import healthRoutes from './routes/health.routes';
 import userRoutes from './routes/user.routes';
 import equipmentRoutes from './routes/equipment.routes';
+import adminRoutes from './routes/admin.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/', healthRoutes);
 app.use('/users', userRoutes);
 app.use('/equipment', equipmentRoutes);
+app.use('/admin', adminRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
