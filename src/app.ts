@@ -6,6 +6,7 @@ import userRoutes from './routes/user.routes';
 import equipmentRoutes from './routes/equipment.routes';
 import adminRoutes from './routes/admin.routes';
 import favoriteRoutes from './routes/favorite.routes';
+import bookingRoutes from './routes/booking.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/users', userRoutes);
 app.use('/equipment', equipmentRoutes);
 app.use('/admin', adminRoutes);
 app.use('/favorites', favoriteRoutes);
+app.use('/bookings', bookingRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

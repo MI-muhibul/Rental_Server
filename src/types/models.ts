@@ -56,15 +56,21 @@ export interface Equipment {
 }
 
 export interface Booking {
-  _id?: ObjectId;
+  _id?: ObjectId | string;
   equipmentId: ObjectId | string;
   userId: ObjectId | string;
   startDate: Date;
   endDate: Date;
-  totalPrice: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  totalPrice?: number;
+  total?: number;
+  quantity?: number;
+  duration?: number;
+  rentalType?: RentalType;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'paid' | string;
+  paymentStatus?: 'pending' | 'paid' | 'failed' | string;
   createdAt: Date;
   updatedAt: Date;
+  [key: string]: any;
 }
 
 export interface Payment {
