@@ -74,14 +74,19 @@ export interface Booking {
 }
 
 export interface Payment {
-  _id?: ObjectId;
+  _id?: ObjectId | string;
+  transactionId: string;
   bookingId: ObjectId | string;
   userId: ObjectId | string;
   amount: number;
   currency: string;
+  date: Date;
+  stripeSessionId?: string;
   stripePaymentIntentId?: string;
-  status: 'pending' | 'succeeded' | 'failed';
+  status: 'pending' | 'succeeded' | 'paid' | 'failed' | string;
   createdAt: Date;
+  updatedAt?: Date;
+  [key: string]: any;
 }
 
 export interface Favorite {
