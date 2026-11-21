@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin.routes';
 import favoriteRoutes from './routes/favorite.routes';
 import bookingRoutes from './routes/booking.routes';
 import paymentRoutes from './routes/payment.routes';
+import analyticsRoutes from './routes/analytics.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/admin', adminRoutes);
 app.use('/favorites', favoriteRoutes);
 app.use('/bookings', bookingRoutes);
 app.use('/payments', paymentRoutes);
+app.use('/analytics', analyticsRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

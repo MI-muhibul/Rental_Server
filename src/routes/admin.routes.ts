@@ -5,6 +5,7 @@ import {
   updateAdminEquipment,
   deleteAdminEquipment,
 } from '../controllers/admin.controller';
+import { getAdminBookings } from '../controllers/booking.controller';
 import { verifyToken, verifyAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -16,5 +17,8 @@ router.get('/equipment', getAdminEquipment);
 router.patch('/equipment/:id/status', updateAdminEquipmentStatus);
 router.patch('/equipment/:id', updateAdminEquipment);
 router.delete('/equipment/:id', deleteAdminEquipment);
+
+// Admin bookings (all bookings with owner and customer info)
+router.get('/bookings', getAdminBookings);
 
 export default router;
