@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ObjectId } from 'mongodb';
 import env from '../config';
 import * as dbConfig from '../config/db';
@@ -14,17 +13,18 @@ declare global {
 }
 
 let customJWKSet: any = null;
-let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
+let cachedJWKS: any = null;
 let cachedUrl: string | null = null;
 
 /**
  * Get or initialize the remote JWKS key set for verifying Better Auth JWTs.
  * Uses client's JWKS URL (e.g., http://localhost:3000/api/auth/jwks).
  */
-export const getJWKS = (customUrl?: string) => {
+export const getJWKS = async (customUrl?: string) => {
   if (customJWKSet) {
     return customJWKSet;
   }
+  const { createRemoteJWKSet } = await import('jose');
   const url = customUrl || env.JWKS_URL || `${env.CLIENT_URL}/api/auth/jwks`;
   if (!cachedJWKS || cachedUrl !== url) {
     cachedJWKS = createRemoteJWKSet(new URL(url));
@@ -81,7 +81,8 @@ export const verifyToken = async (
       return;
     }
 
-    const JWKS = getJWKS();
+    const { jwtVerify } = await import('jose');
+    const JWKS = await getJWKS();
     const { payload } = await jwtVerify(token, JWKS);
 
     const userId = (payload.sub || payload.id || (payload as any).userId) as string | undefined;
