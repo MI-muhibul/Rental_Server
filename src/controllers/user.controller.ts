@@ -47,6 +47,9 @@ export const upsertUser = async (req: Request, res: Response): Promise<void> => 
     if (phone) setFields.phone = phone;
     if (address) setFields.address = address;
     if (id) setFields.id = id;
+    if (normalizedEmail === 'admin@heavyrent.com') {
+      setFields.role = 'admin';
+    }
 
     const result = await users.findOneAndUpdate(
       { email: normalizedEmail },
