@@ -30,7 +30,7 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
       return;
     }
 
-    const { equipmentId, startDate, endDate, quantity } = req.body;
+    const { equipmentId, startDate, endDate, quantity, phone, address, notes } = req.body;
 
     // 1. Validate inputs
     if (!equipmentId || typeof equipmentId !== 'string' || !equipmentId.trim()) {
@@ -157,6 +157,9 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
       duration: String(quote.duration),
       rentalType: targetEquipment.rentalType,
       totalPrice: String(quote.total),
+      phone: String(phone || ''),
+      address: String(address || ''),
+      notes: String(notes || ''),
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -177,8 +180,8 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
         },
       ],
       metadata,
-      success_url: `${env.CLIENT_URL}/payments/confirm?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.CLIENT_URL}/equipment/${eqIdStr}`,
+      success_url: `${env.CLIENT_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.CLIENT_URL}/payment/cancel`,
     });
 
     res.status(200).json({
