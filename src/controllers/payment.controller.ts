@@ -162,6 +162,11 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
       notes: String(notes || ''),
     };
 
+    const primaryClientUrl = (env.CLIENT_URL || 'http://localhost:3000')
+      .split(',')[0]
+      .trim()
+      .replace(/\/$/, '');
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer_email: req.user.email,
@@ -180,8 +185,8 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
         },
       ],
       metadata,
-      success_url: `${env.CLIENT_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.CLIENT_URL}/payment/cancel`,
+      success_url: `${primaryClientUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${primaryClientUrl}/payment/cancel`,
     });
 
     res.status(200).json({

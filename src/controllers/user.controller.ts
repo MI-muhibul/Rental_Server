@@ -18,35 +18,39 @@ const getUserFilter = (id: string) => {
 
 /**
  * POST /users
- * Upsert on register or Google login. Default role: "customer".
+ * Authenticated upsert on register or Google login. Default role: "customer".
+ * Derives email and id from the verified JWT payload to prevent account spoofing.
  */
 export const upsertUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, name, photo, avatar, phone, address, id } = req.body;
+    const verifiedEmail = req.authPayload?.email;
+    const verifiedId = req.authPayload?.sub || req.authPayload?.id;
 
-    if (!email || typeof email !== 'string') {
-      res.status(400).json({ error: 'Valid email is required' });
+    if (!verifiedEmail || typeof verifiedEmail !== 'string') {
+      res.status(400).json({ error: 'Valid email is required in verified token' });
       return;
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const { name, photo, avatar, phone, address } = req.body;
+    const normalizedEmail = verifiedEmail.toLowerCase().trim();
     const { users } = await dbConfig.getCollections();
     const now = new Date();
 
     const picture = photo || avatar || undefined;
+    const resolvedName = name || req.authPayload?.name;
 
     const setFields: Partial<User> = {
       updatedAt: now,
     };
 
-    if (name) setFields.name = name;
+    if (resolvedName) setFields.name = resolvedName;
     if (picture) {
       setFields.photo = picture;
       setFields.avatar = picture;
     }
     if (phone) setFields.phone = phone;
     if (address) setFields.address = address;
-    if (id) setFields.id = id;
+    if (verifiedId) setFields.id = verifiedId;
     if (normalizedEmail === 'admin@heavyrent.com') {
       setFields.role = 'admin';
     }

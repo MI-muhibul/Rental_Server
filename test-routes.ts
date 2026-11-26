@@ -157,20 +157,40 @@ async function runRouteTests() {
 
   try {
     // --- 1. POST /users ---
-    // 1a. Missing email -> 400
+    // 1a. Unauthenticated -> 401
+    const postNoAuth = await fetch(`${baseUrl}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'spoof@rental.com', name: 'Spoof' }),
+    });
+    assert(postNoAuth.status === 401, 'POST /users without auth returns 401');
+
+    // 1b. Token missing email -> 400
+    const noEmailToken = await new SignJWT({ sub: 'no_email_001' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'route-test-key' })
+      .setIssuedAt()
+      .setExpirationTime('2h')
+      .sign(privateKey);
     const postNoEmail = await fetch(`${baseUrl}/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${noEmailToken}`,
+      },
       body: JSON.stringify({ name: 'No Email' }),
     });
-    assert(postNoEmail.status === 400, 'POST /users without email returns 400');
+    assert(postNoEmail.status === 400, 'POST /users without email in token returns 400');
 
-    // 1b. Upsert new user -> defaults role to "customer"
+    // 1c. Upsert new user with valid JWT -> derives email/id from token, defaults role to "customer"
+    const newUserToken = await signTestToken('new_user_001', 'newuser@rental.com');
     const postNewUser = await fetch(`${baseUrl}/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${newUserToken}`,
+      },
       body: JSON.stringify({
-        email: 'newuser@rental.com',
+        email: 'ignored-spoof@rental.com',
         name: 'New Registered User',
         phone: '123-456-7890',
         address: '123 Test St',
@@ -179,7 +199,7 @@ async function runRouteTests() {
     assert(postNewUser.status === 200, 'POST /users creates/upserts user successfully (200)');
     const postNewUserData = await postNewUser.json();
     assert(postNewUserData.user?.role === 'customer', 'POST /users assigns default role "customer"');
-    assert(postNewUserData.user?.email === 'newuser@rental.com', 'POST /users sets user email');
+    assert(postNewUserData.user?.email === 'newuser@rental.com', 'POST /users derives email from verified token');
 
     // --- 2. GET /users/me ---
     // 2a. Without auth -> 401

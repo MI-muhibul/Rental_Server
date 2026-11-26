@@ -55,7 +55,11 @@ export const getClient = async (): Promise<MongoClient> => {
 
 export const getDb = async (dbName?: string): Promise<Db> => {
   const client = await getClient();
-  return client.db(dbName);
+  if (dbName) {
+    return client.db(dbName);
+  }
+  const uriDbName = client.options?.dbName;
+  return client.db(uriDbName && uriDbName !== 'test' ? uriDbName : 'equipment_rental');
 };
 
 export interface DatabaseCollections {

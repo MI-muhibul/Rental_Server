@@ -7,12 +7,12 @@ import {
   updateUserRole,
   deleteUser,
 } from '../controllers/user.controller';
-import { verifyToken, verifyAdmin } from '../middlewares/auth.middleware';
+import { verifyToken, verifyJwtOnly, verifyAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Public / Auth callback: Upsert user on register or Google login
-router.post('/', upsertUser);
+// Authenticated sync callback: Upsert user on register or Google login
+router.post('/', verifyJwtOnly, upsertUser);
 
 // Current user profile routes (must be declared before /:id)
 router.get('/me', verifyToken, getMe);

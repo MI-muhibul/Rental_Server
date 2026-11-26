@@ -4,10 +4,18 @@ import env from '../config';
 import * as dbConfig from '../config/db';
 import { User } from '../types/models';
 
+export interface VerifiedAuthPayload {
+  sub?: string;
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
 declare global {
   namespace Express {
     interface Request {
       user?: User;
+      authPayload?: VerifiedAuthPayload;
     }
   }
 }
@@ -41,6 +49,83 @@ export const setJWKS = (jwks: any) => {
 };
 
 /**
+ * Extracts and verifies the Better Auth JWT from Authorization header or cookies.
+ */
+const extractAndVerifyJwt = async (req: Request): Promise<Record<string, any>> => {
+  let token: string | undefined;
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    } else {
+      token = authHeader.trim();
+    }
+  } else if ((req as any).cookies) {
+    token =
+      (req as any).cookies['better-auth.session_token'] ||
+      (req as any).cookies['session_token'] ||
+      (req as any).cookies['token'];
+  }
+
+  if (!token && req.headers.cookie) {
+    const cookies = Object.fromEntries(
+      req.headers.cookie.split(';').map((c) => {
+        const [k, ...v] = c.trim().split('=');
+        return [k, decodeURIComponent(v.join('='))];
+      })
+    );
+    token = cookies['better-auth.session_token'] || cookies['session_token'] || cookies['token'];
+  }
+
+  if (!token) {
+    throw Object.assign(new Error('Unauthorized: No token provided'), { statusCode: 401 });
+  }
+
+  const { jwtVerify } = await import('jose');
+  const JWKS = await getJWKS();
+  const { payload } = await jwtVerify(token, JWKS);
+  return payload as Record<string, any>;
+};
+
+/**
+ * Middleware to verify a Better Auth JWT without requiring an existing record
+ * in the backend `users` collection (used for POST /users initial sync/upsert).
+ */
+export const verifyJwtOnly = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const payload = await extractAndVerifyJwt(req);
+    const userId = (payload.sub || payload.id || payload.userId) as string | undefined;
+    const email = payload.email as string | undefined;
+
+    if (!userId && !email) {
+      res.status(401).json({ error: 'Unauthorized: Invalid token payload' });
+      return;
+    }
+
+    req.authPayload = {
+      sub: userId,
+      id: userId,
+      email,
+      name: payload.name as string | undefined,
+    };
+
+    next();
+  } catch (error: any) {
+    const msg = error?.message || 'Token verification failed';
+    res.status(401).json({
+      error: msg.startsWith('Unauthorized:') ? msg : 'Unauthorized: Invalid or expired token',
+      message: msg,
+    });
+    return;
+  }
+};
+
+/**
  * Middleware to verify JWT issued by Better Auth via client's JWKS endpoint
  * and load user's role from the users collection in MongoDB.
  */
@@ -50,40 +135,7 @@ export const verifyToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    let token: string | undefined;
-    const authHeader = req.headers.authorization;
-
-    if (authHeader) {
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
-      } else {
-        token = authHeader.trim();
-      }
-    } else if ((req as any).cookies) {
-      token =
-        (req as any).cookies['better-auth.session_token'] ||
-        (req as any).cookies['session_token'] ||
-        (req as any).cookies['token'];
-    }
-
-    if (!token && req.headers.cookie) {
-      const cookies = Object.fromEntries(
-        req.headers.cookie.split(';').map((c) => {
-          const [k, ...v] = c.trim().split('=');
-          return [k, decodeURIComponent(v.join('='))];
-        })
-      );
-      token = cookies['better-auth.session_token'] || cookies['session_token'] || cookies['token'];
-    }
-
-    if (!token) {
-      res.status(401).json({ error: 'Unauthorized: No token provided' });
-      return;
-    }
-
-    const { jwtVerify } = await import('jose');
-    const JWKS = await getJWKS();
-    const { payload } = await jwtVerify(token, JWKS);
+    const payload = await extractAndVerifyJwt(req);
 
     const userId = (payload.sub || payload.id || (payload as any).userId) as string | undefined;
     const email = payload.email as string | undefined;
@@ -92,6 +144,13 @@ export const verifyToken = async (
       res.status(401).json({ error: 'Unauthorized: Invalid token payload' });
       return;
     }
+
+    req.authPayload = {
+      sub: userId,
+      id: userId,
+      email,
+      name: payload.name as string | undefined,
+    };
 
     const { users } = await dbConfig.getCollections();
     let user: User | null = null;
@@ -124,6 +183,10 @@ export const verifyToken = async (
 
     next();
   } catch (error: any) {
+    if (error?.statusCode === 401 && error?.message) {
+      res.status(401).json({ error: error.message });
+      return;
+    }
     res.status(401).json({
       error: 'Unauthorized: Invalid or expired token',
       message: error?.message || 'Token verification failed',
@@ -147,7 +210,7 @@ export const verifyRenter = (
   }
 
   const role = (req.user.role || '').toLowerCase();
-  if (role !== 'renter' && role !== 'customer') {
+  if (role !== 'renter' && role !== 'customer' && role !== 'admin') {
     res.status(403).json({
       error: 'Forbidden: Access restricted to renters (customers)',
     });
@@ -172,7 +235,7 @@ export const verifyOwner = (
   }
 
   const role = (req.user.role || '').toLowerCase();
-  if (role !== 'owner') {
+  if (role !== 'owner' && role !== 'admin') {
     res.status(403).json({
       error: 'Forbidden: Access restricted to equipment owners',
     });
