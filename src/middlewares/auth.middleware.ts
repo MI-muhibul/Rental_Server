@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ObjectId } from 'mongodb';
+import { pathToFileURL } from 'url';
 import env from '../config';
 import * as dbConfig from '../config/db';
 import { User } from '../types/models';
@@ -24,6 +25,14 @@ let customJWKSet: any = null;
 let cachedJWKS: any = null;
 let cachedUrl: string | null = null;
 
+// Preserve native ESM import() under TypeScript CommonJS compilation AND keep static require.resolve('jose') for Vercel NFT bundling
+const importJose = () => {
+  const joseEntry = require.resolve('jose');
+  return new Function('p', 'return import(p)')(pathToFileURL(joseEntry).href) as Promise<
+    typeof import('jose')
+  >;
+};
+
 /**
  * Get or initialize the remote JWKS key set for verifying Better Auth JWTs.
  * Uses client's JWKS URL (e.g., http://localhost:3000/api/auth/jwks).
@@ -32,7 +41,7 @@ export const getJWKS = async (customUrl?: string) => {
   if (customJWKSet) {
     return customJWKSet;
   }
-  const { createRemoteJWKSet } = await import('jose');
+  const { createRemoteJWKSet } = await importJose();
   const url = customUrl || env.JWKS_URL || `${env.CLIENT_URL}/api/auth/jwks`;
   if (!cachedJWKS || cachedUrl !== url) {
     cachedJWKS = createRemoteJWKSet(new URL(url));
@@ -82,7 +91,7 @@ const extractAndVerifyJwt = async (req: Request): Promise<Record<string, any>> =
     throw Object.assign(new Error('Unauthorized: No token provided'), { statusCode: 401 });
   }
 
-  const { jwtVerify } = await import('jose');
+  const { jwtVerify } = await importJose();
   const JWKS = await getJWKS();
   const { payload } = await jwtVerify(token, JWKS);
   return payload as Record<string, any>;
